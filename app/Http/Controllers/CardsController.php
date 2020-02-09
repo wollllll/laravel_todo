@@ -1,97 +1,130 @@
 <?php
 
 namespace App\Http\Controllers;
-//===ここから追加===
-use Auth;
+
 use App\Card;
+use App\Http\Requests\CardRequest;
 use App\Listing;
-use Validator;
-//===ここまで追加===
-use Illuminate\Http\Request;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 class CardsController extends Controller
 {
-    //===ここから追加===
-    //コンストラクタ （このクラスが呼ばれると最初にこの処理をする）
     public function __construct()
     {
-        // ログインしていなかったらログインページに遷移する（この処理を消すとログインしなくてもページを表示する）
         $this->middleware('auth');
     }
 
-    public function new ($listing_id)
+    /**
+     * 新しくカードを作成する画面
+     *
+     * @param Listing $listing
+     * @return Factory|View
+     */
+    public function create(Listing $listing)
     {
-        // テンプレート「card/new.blade.php」を表示します。
-        return view('card/new', ['listing_id' => $listing_id]);
-
+        return view('card.create', compact('listing'));
     }
 
-    public function store(Request $request)
+    /**
+     * 作成したカードを保存する処理
+     *
+     * @param CardRequest $request
+     * @param Listing $listing
+     * @return RedirectResponse
+     */
+    public function store(CardRequest $request, Listing $listing)
     {
-        //バリデーション（入力値チェック）
-        $validator = Validator::make($request->all() , ['card_title' => 'required|max:255', 'card_memo' => 'required|max:255',]);
+        $inputs = $request->validated();
 
-        //バリデーションの結果がエラーの場合
-        if ($validator->fails())
-        {
-            return redirect()->back()->withErrors($validator->errors())->withInput();
+        try {
+            DB::beginTransaction();
 
+            Card::create([
+                'title' => array_get($inputs, 'card_title'),
+                'memo' => array_get($inputs, 'card_memo'),
+                'listing_id' => $listing->id,
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            abort(500);
         }
 
-        // Card
-        $cards = new Card;
-        $cards->title = $request->card_title;
-        $cards->listing_id = $request->listing_id;
-        $cards->memo = $request->card_memo;
-
-        $cards->save();
-        // 「/」 ルートにリダイレクト
-        return redirect('/');
+        return redirect()->route('listing.index');
     }
 
-    public function show($listing_id, $card_id)
+    /**
+     * カードの詳細画面
+     *
+     * @param Listing $listing
+     * @param Card $card
+     * @return Factory|View
+     */
+    public function show(Listing $listing, Card $card)
     {
-        $listing = Listing::find($listing_id);
-        $card = Card::find($card_id);
-        // テンプレート「card/show.blade.php」を表示します。
-        return view('card/show', ['listing' => $listing, 'card' => $card]);
+        return view('card.show', compact('listing', 'card'));
     }
 
-    public function edit($listing_id, $card_id)
+    /**
+     * カードの編集画面
+     *
+     * @param Listing $listing
+     * @param Card $card
+     * @return Factory|View
+     */
+    public function edit(Listing $listing, Card $card)
     {
-        $listings = Listing::where('user_id', Auth::user()->id)->get();
-        $listing = Listing::find($listing_id);
-        $card = Card::find($card_id);
-        // テンプレート「card/edit.blade.php」を表示します。
-        return view('card/edit', ['listings' => $listings, 'listing' => $listing, 'card' => $card]);
+        $listings = Listing::where('user_id', $listing->user_id)->get();
+
+        return view('card.edit', compact('listings', 'listing', 'card'));
     }
 
-    public function update(Request $request)
+    /**
+     * カードの編集処理
+     *
+     * @param CardRequest $request
+     * @param Listing $listing
+     * @param Card $card
+     * @return RedirectResponse
+     */
+    public function update(CardRequest $request, Listing $listing, Card $card)
     {
-        //バリデーション（入力値チェック）
-        $validator = Validator::make($request->all() , ['card_title' => 'required|max:255', 'card_memo' => 'required|max:255',]);
+        $inputs = $request->validated();
 
-        //バリデーションの結果がエラーの場合
-        if ($validator->fails())
-        {
-            return redirect()->back()->withErrors($validator->errors())->withInput();
+        try {
+            DB::beginTransaction();
+
+            $card->update([
+                'title' => array_get($inputs, 'card_title'),
+                'memo' => array_get($inputs, 'card_memo'),
+                'listing_id' => $listing->id,
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            abort(500);
         }
 
-        $card = Card::find($request->id);
-        $card->title = $request->card_title;
-        $card->memo = $request->card_memo;
-        $card->listing_id = $request->listing_id;
-        $card->save();
-        // 「/」 ルートにリダイレクト
-        return redirect('/');
+        return redirect()->route('listing.card.show', [$listing, $card]);
     }
 
-    public function destroy($listing_id, $card_id)
+    /**
+     * カードの削除処理
+     *
+     * @param Listing $listing
+     * @param Card $card
+     * @return RedirectResponse
+     * @throws \Exception
+     */
+    public function destroy(Listing $listing, Card $card)
     {
-        $card = Card::find($card_id);
         $card->delete();
-        // 「/」 ルートにリダイレクト
-        return redirect('/');
+
+        return redirect()->route('listing.index');
     }
-    //===ここまで追加===
 }

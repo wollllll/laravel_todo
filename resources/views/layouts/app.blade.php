@@ -42,12 +42,12 @@
             <ul class="header_menu">
                 <li class="nav-link">{{Auth::user()->name }}さん</li>
                 <li class="header_menu_title">
-                    <a class="nav-link listNew" href="/">kanban</a>
+                    <a class="nav-link listNew" href="/">laravel_todo</a>
                 </li>
                 <li>
                     <ul class="header_menu_inner">
                         <li>
-                            <a class="nav-link listNew" href="{{ route('new') }}">リストを作成</a>　　
+                            <a class="nav-link listNew" href="{{ route('listing.create') }}">リストを作成</a>
                         </li>
                         <li>
                             <a class="nav-link" href="{{ route('logout') }}" onclick="event.preventDefault();document.getElementById('logout-form').submit();">

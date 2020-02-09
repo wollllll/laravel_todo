@@ -3,8 +3,9 @@
     <div class="panel-body">
         <!-- バリデーションエラーの場合に表示 -->
         @include('common.errors')
-        <form action="{{ url('/listing/edit')}}" method="POST" class="form-horizontal">
-            {{csrf_field()}}
+        <form action="{{ route('listing.update', $listing) }}" method="POST" class="form-horizontal">
+            {{ csrf_field() }}
+            {{ method_field('PATCH') }}
             <div class="form-group">
                 <label for="listing" class="col-sm-3 control-label">リスト名</label>
                 <div class="col-sm-6">

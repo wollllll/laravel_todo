@@ -1,90 +1,115 @@
 <?php
 
 namespace App\Http\Controllers;
-//===ここから追加===
+
+use App\Http\Requests\ListingRequest;
 use App\Listing;
-use Auth;
-use Validator;
-//===ここまで追加===
-use Illuminate\Http\Request;
+use Illuminate\Contracts\View\Factory;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 class ListingsController extends Controller
 {
-    //===ここから追加===
-    //コンストラクタ （このクラスが呼ばれると最初にこの処理をする）
     public function __construct()
     {
-        // ログインしていなかったらログインページに遷移する（この処理を消すとログインしなくてもページを表示する）
         $this->middleware('auth');
     }
 
+    /**
+     * ログインしているユーザーに関連するlistingを取得
+     *
+     * @return Factory|View
+     */
     public function index()
     {
         $listings = Listing::where('user_id', Auth::user()->id)
             ->orderBy('created_at', 'asc')
             ->get();
 
-        // テンプレート「listing/index.blade.php」を表示します。
-        return view('listing/index', ['listings' => $listings]);
+        return view('listing.index', compact('listings'));
     }
 
-    public function new()
+    /**
+     * 新しくlistingを作成する画面
+     *
+     * @return Factory|View
+     */
+    public function create()
     {
-        // テンプレート「listing/new.blade.php」を表示します。
-        return view('listing/new');
-
+        return view('listing.create');
     }
 
-    public function store(Request $request)
+    /**
+     * 投稿したlistingを保存する処理
+     *
+     * @param ListingRequest $request
+     * @return RedirectResponse
+     */
+    public function store(ListingRequest $request)
     {
-        //バリデーション（入力値チェック）
-        $validator = Validator::make($request->all() , ['list_name' => 'required|max:255', ]);
+        $inputs = $request->validated();
 
-        //バリデーションの結果がエラーの場合
-        if ($validator->fails())
-        {
-            return redirect()->back()->withErrors($validator->errors())->withInput();
+        try {
+            DB::beginTransaction();
+
+            Listing::create([
+                'title' => array_get($inputs, 'list_name'),
+                'user_id' => Auth::user()->id,
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            abort(500);
         }
 
-        // Listingモデル作成
-        $listings = new Listing;
-        $listings->title = $request->list_name;
-        $listings->user_id = Auth::user()->id;
-
-        $listings->save();
-        // 「/」 ルートにリダイレクト
-        return redirect('/');
+        return redirect()->route('listing.index');
     }
 
-    public function edit($listing_id)
+    /**
+     * 投稿してあるlistingを編集する画面
+     *
+     * @param Listing $listing
+     * @return Factory|View
+     */
+    public function edit(Listing $listing)
     {
-        $listing = Listing::find($listing_id);
-        // テンプレート「listing/edit.blade.php」を表示します。
-        return view('listing/edit', ['listing' => $listing]);
+        return view('listing.edit', compact('listing'));
     }
 
-    public function update(Request $request)
+    /**
+     * 投稿してあるlistingを編集する処理
+     *
+     * @param ListingRequest $request
+     * @param Listing $listing
+     * @return RedirectResponse
+     */
+    public function update(ListingRequest $request, Listing $listing)
     {
-        //バリデーション（入力値チェック）
-        $validator = Validator::make($request->all() , ['list_name' => 'required|max:255', ]);
+        $inputs = $request->validated();
 
-        //バリデーションの結果がエラーの場合
-        if ($validator->fails())
-        {
-            return redirect()->back()->withErrors($validator->errors())->withInput();
+        try {
+            DB::beginTransaction();
+
+            $listing->update([
+                'title' => array_get($inputs, 'list_name'),
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            abort(500);
         }
 
-        $listing = Listing::find($request->id);
-        $listing->title = $request->list_name;
-        $listing->save();
-        return redirect('/');
+        return redirect()->route('listing.index');
     }
 
-    public function destroy($listing_id)
+    public function destroy(Listing $listing)
     {
-        $listing = Listing::find($listing_id);
         $listing->delete();
-        return redirect('/');
+
+        return redirect()->route('listing.index');
     }
-    //===ここまで追加===
 }
