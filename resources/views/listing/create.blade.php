@@ -4,7 +4,7 @@
         <!-- バリデーションエラーの場合に表示 -->
     @include('common.errors')
     <!-- リスト作成フォーム -->
-        <form action="{{ url('listings')}}" method="POST" class="form-horizontal">
+        <form action="{{ route('listing.store') }}" method="POST" class="form-horizontal">
             {{csrf_field()}}
             <div class="form-group">
                 <label for="listing" class="col-sm-3 control-label">リスト名</label>
